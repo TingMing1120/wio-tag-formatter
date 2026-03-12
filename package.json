@@ -2,7 +2,7 @@
   "name": "wio-tag-formatter",
   "displayName": "wio-tag-formatter",
   "description": "Formatter for WIO code",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "publisher": "wio-devlab",
   "engines": {
     "vscode": "^1.109.0"

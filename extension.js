@@ -42,89 +42,139 @@ const isReferenceTag = (line) =>
 function preprocess(text) {
   const tokens = [];
   let i = 0;
+  let line = 1;
 
   while (i < text.length) {
     if (text[i] === "<" && text[i + 1] === "?") {
-      let tagEnd = i,
-        inQuote = false,
-        quoteChar = "";
+      let tagEnd = i;
+      let inQuote = false;
+      let quoteChar = "";
+      const startLine = line;
+
       while (tagEnd < text.length) {
         const ch = text[tagEnd];
+        if (ch === "\n") line++;
         if (inQuote) {
           if (ch === quoteChar) inQuote = false;
         } else {
           if (ch === '"' || ch === "'") {
             inQuote = true;
             quoteChar = ch;
-          } else if (ch === ">") break;
+          } else if (ch === ">") {
+            break;
+          }
         }
         tagEnd++;
       }
-      tokens.push({ type: "tag", value: text.slice(i, tagEnd + 1) });
+
+      const tag = text.slice(i, tagEnd + 1);
+      tokens.push({ type: "tag", value: tag, line: startLine, endLine: line });
       i = tagEnd + 1;
     } else {
       let start = i;
-      while (i < text.length && !(text[i] === "<" && text[i + 1] === "?")) i++;
+      const tempStartLine = line;
+
+      while (i < text.length && !(text[i] === "<" && text[i + 1] === "?")) {
+        if (text[i] === "\n") line++;
+        i++;
+      }
+
       const content = text.slice(start, i);
-      if (content.trim() !== "")
-        tokens.push({ type: "content", value: content });
+
+      if (content.trim() !== "") {
+        tokens.push({
+          type: "content",
+          value: content,
+          line: tempStartLine,
+          endLine: line,
+        });
+      }
     }
   }
 
-  const lines = [];
-  for (const token of tokens) {
-    if (token.type === "tag") lines.push(token.value.trim());
-    else {
-      const contentLines = token.value
-        .split("\n")
-        .map((l) => l.trimEnd())
-        .join("\n")
-        .trim();
-      if (contentLines !== "") lines.push(contentLines);
-    }
-  }
-  return lines.join("\n");
+  return tokens;
 }
 
-// 主要格式化函數
 function formatWio(text) {
-  const preprocessed = preprocess(text);
-  const lines = preprocessed.split("\n");
+  const tokens = preprocess(text);
   const result = [];
   let indent = 0;
+  let prevLine = 0;
 
-  for (let i = 0; i < lines.length; i++) {
-    const trimmed = lines[i].trim();
-    if (trimmed === "") continue;
+  for (const token of tokens) {
+    if (token.type === "tag") {
+      const tag = token.value.trim();
 
-    if (isClosingTag(trimmed)) {
-      indent = Math.max(0, indent - 1);
-      result.push(indentStr.repeat(indent) + trimmed);
-      continue;
+      if (isClosingTag(tag)) {
+        indent = Math.max(0, indent - 1);
+
+        if (token.line === prevLine) {
+          result[result.length - 1] += tag;
+          console.log("result= ", result);
+        } else {
+          result.push(indentStr.repeat(indent) + tag);
+        }
+
+        prevLine = token.endLine;
+        continue;
+      }
+
+      if (isMIELSE(tag)) {
+        indent = Math.max(0, indent - 1);
+
+        if (token.line === prevLine) {
+          result[result.length - 1] += tag;
+        } else {
+          result.push(indentStr.repeat(indent) + tag);
+        }
+
+        indent++;
+        prevLine = token.endLine;
+        continue;
+      }
+
+      if (isReferenceTag(tag)) {
+        if (token.line === prevLine) {
+          result[result.length - 1] += tag;
+        } else {
+          result.push(indentStr.repeat(indent) + tag);
+        }
+
+        prevLine = token.endLine;
+        continue;
+      }
+
+      if (isOpeningTag(tag)) {
+        if (token.line === prevLine) {
+          result[result.length - 1] += tag;
+        } else {
+          result.push(indentStr.repeat(indent) + tag);
+        }
+
+        indent++;
+        prevLine = token.endLine;
+        continue;
+      }
     }
 
-    if (isMIELSE(trimmed)) {
-      indent = Math.max(0, indent - 1);
-      result.push(indentStr.repeat(indent) + trimmed);
-      indent++;
-      continue;
-    }
+    if (token.type === "content") {
+      const lines = token.value.split("\n");
 
-    if (isReferenceTag(trimmed)) {
-      result.push(indentStr.repeat(indent) + trimmed);
-      continue;
-    }
+      for (let li = 0; li < lines.length; li++) {
+        const cl = lines[li];
 
-    if (isOpeningTag(trimmed)) {
-      result.push(indentStr.repeat(indent) + trimmed);
-      indent++;
-      continue;
-    }
+        if (cl.trim() === "") continue;
 
-    // 文字/SQL 內容，依縮排輸出
-    const contentLines = trimmed.split("\n");
-    for (const cl of contentLines) {
-      if (cl.trim() !== "") result.push(indentStr.repeat(indent) + cl.trim());
+        const currentLine = token.line + li;
+
+        if (currentLine === prevLine) {
+          result[result.length - 1] += cl.trim();
+        } else {
+          result.push(indentStr.repeat(indent) + cl.trim());
+        }
+
+        prevLine = currentLine;
+      }
     }
   }
 

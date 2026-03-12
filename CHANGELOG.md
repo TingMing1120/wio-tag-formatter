@@ -24,3 +24,9 @@
 - 可以支援 html 檔案裏面的 wio 程式碼，但是如果 vs code extension 有多個 formatter 會需要擇一選擇
 
 ---
+
+## [0.0.3] - 2026-03-12
+
+- mivar 開始標籤跟結束標籤如果在同一行就不需要刻意 formatter 變成 3 行
+
+---
