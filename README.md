@@ -8,6 +8,7 @@ Formatter for WIO code files (.wio)。
 
 - WIO 標籤自動縮排
 - 保留文字/SQL 內容格式
+- 可以支援 html 檔案裏面的 wio 程式碼，但是如果 vs code extension 有多個 formatter 會需要擇一選擇
 
 ---
 
